@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>자리뽑기</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif;background:#f7f7f8;color:#222}
+.wrap{max-width:1000px;margin:auto;padding:32px 18px 50px}.title{font-size:32px;font-weight:800;margin-bottom:8px}.sub{color:#777;margin-bottom:28px}
+.card{background:#fff;border:1px solid #e5e5e7;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 2px 8px #00000008}
+h2{font-size:18px;margin:0 0 16px}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+label{font-size:14px;font-weight:600;display:block;margin-bottom:7px}.field{min-width:130px}
+input,textarea{width:100%;border:1px solid #d8d8dc;border-radius:10px;padding:11px 12px;font-size:15px;background:#fff}
+textarea{min-height:90px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer;font-size:14px}
+.primary{background:#222;color:#fff}.secondary{background:#eee;color:#222}.danger{background:#fff0f0;color:#c33}
+.hint{font-size:13px;color:#777;margin-top:8px}.error{color:#c33;font-size:14px;margin-top:10px}
+.students{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:14px}
+.student{border:1px solid #ddd;border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center;font-size:14px}
+.board{margin:22px auto 14px;text-align:center;background:#222;color:white;border-radius:8px;padding:10px;max-width:650px;font-weight:700}
+.seating{display:grid;gap:8px;max-width:800px;margin:0 auto}
+.seat{min-height:64px;border:1px solid #bbb;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:650;padding:8px;position:relative}
+.seat.empty{background:#f1f1f1;color:#aaa}.seat.clickable{cursor:pointer}.seat small{position:absolute;top:5px;left:7px;color:#aaa;font-size:10px;font-weight:400}
+.result-actions{text-align:center;margin-top:18px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.hidden{display:none}.savebar{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}.saved{font-size:13px;color:#555}
+@media print{body{background:white}.no-print{display:none!important}.wrap{padding:0;max-width:none}.card{border:0;box-shadow:none}.result-card{display:block!important}.board{margin-top:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">자리뽑기</div>
+  <div class="sub">원하는 교실 구조와 규칙을 설정하고 공정하게 랜덤으로 자리를 배정하세요.</div>
+
+  <section class="card no-print">
+    <h2>1. 교실 설정</h2>
+    <div class="row">
+      <div class="field"><label>행</label><input id="rows" type="number" min="1" max="20" value="5"></div>
+      <div class="field"><label>열</label><input id="cols" type="number" min="1" max="20" value="6"></div>
+      <button class="secondary" onclick="makeSeats()">자리 구조 만들기</button>
+    </div>
+    <div class="hint">전체 자리는 직사각형(행 × 열)으로 만든 뒤, 필요 없는 자리를 클릭해 빈자리로 설정합니다.</div>
+    <div id="seatEditor"></div>
+  </section>
+
+  <section class="card no-print">
+    <h2>2. 학생 이름 입력</h2>
+    <textarea id="names" placeholder="예: 강수경,김민지,박지우,최유진"></textarea>
+    <div class="hint">이름은 쉼표(,)로 구분해 입력하세요.</div>
+  </section>
+
+  <section class="card no-print">
+    <h2>3. 앞자리 학생 선택</h2>
+    <div class="hint">선택한 학생은 사용 가능한 <b>맨 앞줄</b> 좌석 중에서 랜덤 배정됩니다.</div>
+    <div id="studentChecks" class="students"></div>
+  </section>
+
+  <section class="card no-print">
+    <h2>4. 자리뽑기</h2>
+    <button class="primary" onclick="draw()">🎲 랜덤 자리뽑기</button>
+    <button class="secondary" onclick="resetAll()">초기화</button>
+    <div id="message"></div>
+    <div class="savebar">
+      <button class="secondary" onclick="saveSettings()">설정 저장</button>
+      <button class="secondary" onclick="loadSettings()">저장한 설정 불러오기</button>
+      <span id="saved" class="saved"></span>
+    </div>
+  </section>
+
+  <section id="resultCard" class="card result-card hidden">
+    <div id="result"></div>
+    <div class="result-actions no-print">
+      <button class="primary" onclick="draw()">🎲 다시 뽑기</button>
+      <button class="secondary" onclick="window.print()">🖨️ 출력하기</button>
+    </div>
+  </section>
+</div>
+
+<script>
+let seatState=[];
+const $=id=>document.getElementById(id);
+
+function makeSeats(){
+  const r=+$('rows').value,c=+$('cols').value;
+  if(!r||!c)return;
+  seatState=Array.from({length:r*c},()=>true);
+  renderEditor();
+}
+function renderEditor(){
+  const r=+$('rows').value,c=+$('cols').value;
+  $('seatEditor').innerHTML='';
+  const grid=document.createElement('div');
+  grid.className='seating';
+  grid.style.gridTemplateColumns=`repeat(${c},1fr)`;
+  for(let i=0;i<r*c;i++){
+    const d=document.createElement('div');
+    d.className='seat clickable'+(!seatState[i]?' empty':'');
+    d.innerHTML=`<small>${Math.floor(i/c)+1}-${i%c+1}</small>${seatState[i]?'사용':'빈자리'}`;
+    d.onclick=()=>{seatState[i]=!seatState[i];renderEditor()};
+    grid.appendChild(d);
+  }
+  $('seatEditor').appendChild(grid);
+}
+function parseNames(){
+  return $('names').value.split(',').map(x=>x.trim()).filter(Boolean);
+}
+function updateChecks(){
+  const names=parseNames(), box=$('studentChecks');
+  box.innerHTML='';
+  if(!names.length){box.innerHTML='<span class="hint">학생 이름을 먼저 입력하세요.</span>';return}
+  [...new Set(names)].forEach((n,i)=>{
+    const d=document.createElement('label');d.className='student';
+    d.innerHTML=`<input type="checkbox" value="${escapeHtml(n)}"> ${escapeHtml(n)}`;
+    box.appendChild(d);
+  });
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+$('names').addEventListener('input',updateChecks);
+$('rows').addEventListener('change',makeSeats);$('cols').addEventListener('change',makeSeats);
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function draw(){
+  const r=+$('rows').value,c=+$('cols').value;
+  const names=parseNames();
+  $('message').innerHTML='';
+  if(!r||!c){return err('행과 열을 설정하세요.')}
+  if(seatState.length!==r*c)makeSeats();
+  if(!names.length)return err('학생 이름을 입력하세요.');
+  if(new Set(names).size!==names.length)return err('같은 이름이 중복되어 있습니다. 이름을 확인하세요.');
+  const available=seatState.map((v,i)=>v?i:-1).filter(i=>i>=0);
+  if(available.length<names.length)return err(`사용 가능한 자리가 부족합니다. 학생 ${names.length}명 / 사용 가능한 자리 ${available.length}개`);
+  const front=Array.from(document.querySelectorAll('#studentChecks input:checked')).map(x=>x.value);
+  const frontSet=new Set(front);
+  const frontSeats=available.filter(i=>Math.floor(i/c)===0);
+  if(front.length>frontSeats.length)return err(`앞자리 학생 ${front.length}명인데 사용 가능한 맨 앞줄 자리가 ${frontSeats.length}개입니다.`);
+  const assignment=Array(r*c).fill('');
+  const fs=shuffle(frontSeats.slice());
+  shuffle(front.slice()).forEach((n,i)=>assignment[fs[i]]=n);
+  const remainingNames=shuffle(names.filter(n=>!frontSet.has(n)));
+  const remainingSeats=shuffle(available.filter(i=>!assignment[i]));
+  remainingNames.forEach((n,i)=>assignment[remainingSeats[i]]=n);
+  renderResult(assignment,r,c);
+}
+function renderResult(a,r,c){
+  const result=$('result');result.innerHTML='';
+  const board=document.createElement('div');board.className='board';board.textContent='칠판';result.appendChild(board);
+  const grid=document.createElement('div');grid.className='seating';grid.style.gridTemplateColumns=`repeat(${c},1fr)`;
+  for(let i=0;i<r*c;i++){
+    const d=document.createElement('div');d.className='seat'+(!seatState[i]?' empty':'');
+    d.textContent=seatState[i]?(a[i]||''):'';
+    grid.appendChild(d);
+  }
+  result.appendChild(grid);
+  $('resultCard').classList.remove('hidden');
+}
+function err(t){$('message').innerHTML=`<div class="error">❌ ${t}</div>`}
+function saveSettings(){
+  localStorage.setItem('seatDrawSettings',JSON.stringify({
+    rows:+$('rows').value,cols:+$('cols').value,seatState,names:$('names').value,
+    front:Array.from(document.querySelectorAll('#studentChecks input:checked')).map(x=>x.value)
+  }));
+  $('saved').textContent='설정이 이 기기에 저장되었습니다.';
+}
+function loadSettings(){
+  const x=localStorage.getItem('seatDrawSettings');
+  if(!x){$('saved').textContent='저장된 설정이 없습니다.';return}
+  const s=JSON.parse(x);$('rows').value=s.rows;$('cols').value=s.cols;seatState=s.seatState||Array(s.rows*s.cols).fill(true);
+  $('names').value=s.names||'';renderEditor();updateChecks();
+  setTimeout(()=>{(s.front||[]).forEach(n=>{const e=[...document.querySelectorAll('#studentChecks input')].find(x=>x.value===n);if(e)e.checked=true})},0);
+  $('saved').textContent='저장한 설정을 불러왔습니다.';
+}
+function resetAll(){
+  localStorage.removeItem('seatDrawSettings');location.reload();
+}
+makeSeats();updateChecks();
+</script>
+</body>
+</html>
