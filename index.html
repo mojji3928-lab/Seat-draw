@@ -15,8 +15,8 @@ textarea{min-height:90px;resize:vertical}
 button{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer;font-size:14px}
 .primary{background:#222;color:#fff}.secondary{background:#eee;color:#222}.danger{background:#fff0f0;color:#c33}
 .hint{font-size:13px;color:#777;margin-top:8px}.error{color:#c33;font-size:14px;margin-top:10px}
-.students{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:14px}
-.student{border:1px solid #ddd;border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center;font-size:14px}
+.students{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:14px}
+.student{border:1px solid #ddd;border-radius:10px;padding:10px 14px;display:flex;gap:8px;align-items:center;font-size:14px;white-space:nowrap;word-break:keep-all;min-width:130px}
 .board{margin:22px auto 14px;text-align:center;background:#222;color:white;border-radius:8px;padding:10px;max-width:650px;font-weight:700}
 .seating{display:grid;gap:8px;max-width:800px;margin:0 auto}
 .seat{min-height:64px;border:1px solid #bbb;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:650;padding:8px;position:relative}
@@ -44,7 +44,7 @@ button{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:poin
 
   <section class="card no-print">
     <h2>2. 학생 이름 입력</h2>
-    <textarea id="names" placeholder="예: 강수경,김민지,박지우,최유진"></textarea>
+    <textarea id="names" placeholder="예: 박지우,최유진"></textarea>
     <div class="hint">이름은 쉼표(,)로 구분해 입력하세요.</div>
   </section>
 
